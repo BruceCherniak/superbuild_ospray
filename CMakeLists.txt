@@ -29,10 +29,10 @@ include(GNUInstallDirs)
 set(installDir ${CMAKE_INSTALL_PREFIX})
 
 # Options
-set(NUM_BUILD_JOBS 4 CACHE STRING "Number of build jobs '-j <n>'")
-set(BUILD_EMBREE_VERSION "3.5.2" CACHE STRING "Which version of Embree to build?")
-set(BUILD_OIDN_VERSION "0.9.0" CACHE STRING "Which version of OpenImageDenoise to build?")
-set(BUILD_OSPRAY_BRANCH "devel" CACHE STRING "Which branch of OSPRay to build?")
+set(NUM_BUILD_JOBS CACHE STRING "Number of build jobs '-j <n>'") #BMC, all cores by default
+set(BUILD_EMBREE_VERSION "3.6.1" CACHE STRING "Which version of Embree to build?")
+set(BUILD_OIDN_VERSION "1.1.0" CACHE STRING "Which version of OpenImageDenoise to build?")
+set(BUILD_OSPRAY_BRANCH "v1.8.5" CACHE STRING "Which branch of OSPRay to build?")
 option(BUILD_DEPENDENCIES_ONLY "Don't build OSPRay itself, only deps" OFF)
 
 if (${CMAKE_MINOR_VERSION} GREATER_EQUAL 12)
@@ -42,13 +42,13 @@ endif()
 set(DEFAULT_BUILD_COMMAND cmake --build . --config release ${PARALLEL_JOBS_OPTS})
 
 ## ISPC ##
-
+set(ISPC_VERSION "v1.12.0" CACHE STRING "Which version of ISPC to use?")
 if (APPLE)
-  set(ISPC_URL http://sdvis.org/ospray/download/dependencies/osx/ispc-v1.10.0-osx.tar.gz)
+  set(ISPC_URL http://sdvis.org/ospray/download/dependencies/osx/ispc-${ISPC_VERSION}-osx.tar.gz)
 elseif(WIN32)
-  set(ISPC_URL http://sdvis.org/ospray/download/dependencies/win/ispc-v1.10.0-windows.zip)
+  set(ISPC_URL http://sdvis.org/ospray/download/dependencies/win/ispc-${ISPC_VERSION}-windows.zip)
 else()
-  set(ISPC_URL http://sdvis.org/ospray/download/dependencies/linux/ispc-v1.10.0-linux.tar.gz)
+  set(ISPC_URL http://sdvis.org/ospray/download/dependencies/linux/ispc-${ISPC_VERSION}-linux.tar.gz)
 endif()
 
 get_filename_component(INSTALL_DIR_ABSOLUTE
@@ -144,9 +144,22 @@ ExternalProject_Add(oidn
   BUILD_ALWAYS OFF
 )
 
+set(OIDN_PATH "${INSTALL_DIR_ABSOLUTE}/OpenImageDenoise")
+if (NOT WIN32)
+    set(OIDN_PATH "${OIDN_PATH}/${CMAKE_INSTALL_LIBDIR}/cmake/OpenImageDenoise")
+endif()
+
 ExternalProject_Add_StepDependencies(oidn configure tbb ispc)
 
 ## OSPRay ##
+
+# BMC:
+# Edit ospray/src/apps/common/sg/CMakeLists.txt:
+# line 70: find_package(OpenImageDenoise 1.1.0 REQUIRED)
+#
+# Might need to edit ospray/src/apps/common/sg/texture/Texture2D.cpp (depending on OIIO version):
+# line 120: ImageInput::unique_ptr in = ImageInput::open(fileName.str().c_str());
+# line 139: in->destroy(); (delete)
 
 if (NOT BUILD_DEPENDENCIES_ONLY)
   set(ENV{TBB_ROOT} ${TBB_ROOT})
@@ -164,6 +177,9 @@ if (NOT BUILD_DEPENDENCIES_ONLY)
       -DCMAKE_C_COMPILER=${CMAKE_C_COMPILER}
       -DCMAKE_INSTALL_PREFIX:PATH=<INSTALL_DIR>
       -Dembree_DIR:PATH=${EMBREE_PATH}
+      -DOpenImageDenoise_DIR:PATH=${OIDN_PATH}
+      -DOSPRAY_APPS_ENABLE_DENOISER=ON
+      -DOSPRAY_SG_OPENIMAGEIO=ON
       -DTBB_ROOT=${TBB_ROOT}
       -DISPC_EXECUTABLE=${ISPC_PATH}
       -DCMAKE_BUILD_TYPE=Release
@@ -171,5 +187,5 @@ if (NOT BUILD_DEPENDENCIES_ONLY)
     BUILD_ALWAYS OFF
   )
 
-  ExternalProject_Add_StepDependencies(ospray configure embree)
+  ExternalProject_Add_StepDependencies(ospray configure embree oidn)
 endif()

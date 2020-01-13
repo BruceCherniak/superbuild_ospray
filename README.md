@@ -22,4 +22,6 @@ CMake options to note (all have sensible defaults):
 - `NUM_BUILD_JOBS` sets the number given to `make -j` for parallel builds.
 - `BUILD_EMBREE_VERSION` determines which verison of Embree to pull down.
 - `BUILD_OSPRAY_BRANCH` selects which branch of OSPRay to build.
+- `BUILD_OIDN_VERSION` selects which branch of OpenImageDenoise to build.
 
+Note: OSPRay build is set to require OpenImageIO.  This dependency must be pre-installed separately
