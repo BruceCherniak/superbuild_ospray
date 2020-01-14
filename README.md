@@ -24,4 +24,6 @@ CMake options to note (all have sensible defaults):
 - `BUILD_OSPRAY_BRANCH` selects which branch of OSPRay to build.
 - `BUILD_OIDN_VERSION` selects which branch of OpenImageDenoise to build.
 
-Note: OSPRay build is set to require OpenImageIO.  This dependency must be pre-installed separately
+Note: OSPRay build is set to require OpenImageIO.  This dependency must be pre-installed separately.
+If OpenImageIO cannot be installed via package, here is the source for the latest stable release:
+https://github.com/OpenImageIO/oiio/tree/release

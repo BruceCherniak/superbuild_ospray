@@ -33,7 +33,8 @@ set(NUM_BUILD_JOBS CACHE STRING "Number of build jobs '-j <n>'") #BMC, all cores
 set(BUILD_EMBREE_VERSION "3.6.1" CACHE STRING "Which version of Embree to build?")
 set(BUILD_OIDN_VERSION "1.1.0" CACHE STRING "Which version of OpenImageDenoise to build?")
 set(BUILD_OSPRAY_BRANCH "v1.8.5" CACHE STRING "Which branch of OSPRay to build?")
-option(BUILD_DEPENDENCIES_ONLY "Don't build OSPRay itself, only deps" OFF)
+set(BUILD_STUDIO_BRANCH "master" CACHE STRING "Which branch of OSPRayStudio to build?")
+option(BUILD_DEPENDENCIES_ONLY "Don't build OSPRay or OSPRayStudio itself, only deps" OFF)
 
 if (${CMAKE_MINOR_VERSION} GREATER_EQUAL 12)
   set(PARALLEL_JOBS_OPTS -j ${NUM_BUILD_JOBS})
@@ -153,13 +154,13 @@ ExternalProject_Add_StepDependencies(oidn configure tbb ispc)
 
 ## OSPRay ##
 
-# BMC:
+# BMC: Create patch command for these!!!
 # Edit ospray/src/apps/common/sg/CMakeLists.txt:
 # line 70: find_package(OpenImageDenoise 1.1.0 REQUIRED)
 #
 # Might need to edit ospray/src/apps/common/sg/texture/Texture2D.cpp (depending on OIIO version):
 # line 120: ImageInput::unique_ptr in = ImageInput::open(fileName.str().c_str());
-# line 139: in->destroy(); (delete)
+# line 139: ImageInput::destroy(in); (delete)
 
 if (NOT BUILD_DEPENDENCIES_ONLY)
   set(ENV{TBB_ROOT} ${TBB_ROOT})
@@ -188,4 +189,37 @@ if (NOT BUILD_DEPENDENCIES_ONLY)
   )
 
   ExternalProject_Add_StepDependencies(ospray configure embree oidn)
+endif()
+
+## OSPRayStudio ##
+
+if (NOT BUILD_DEPENDENCIES_ONLY)
+  set(ENV{TBB_ROOT} ${TBB_ROOT})
+
+  ExternalProject_Add(ospray_studio
+    PREFIX ospray_studio
+    DOWNLOAD_DIR ospray_studio
+    STAMP_DIR ospray_studio/stamp
+    SOURCE_DIR ospray_studio/src
+    BINARY_DIR ospray_studio/build
+    INSTALL_DIR ${INSTALL_DIR_ABSOLUTE}/ospray_studio
+  GIT_REPOSITORY https://github.com/ospray/ospray_studio
+  GIT_TAG ${BUILD_STUDIO_BRANCH}
+  GIT_SHALLOW ON
+    CMAKE_ARGS
+      -DCMAKE_CXX_COMPILER=${CMAKE_CXX_COMPILER}
+      -DCMAKE_C_COMPILER=${CMAKE_C_COMPILER}
+      -DCMAKE_INSTALL_PREFIX:PATH=<INSTALL_DIR>
+      -Dospray_DIR:PATH=${OSPRAY_PATH}
+      -Dembree_DIR:PATH=${EMBREE_PATH}
+      -DOpenImageDenoise_DIR:PATH=${OIDN_PATH}
+      -DTBB_ROOT=${TBB_ROOT}
+      -DISPC_EXECUTABLE=${ISPC_PATH}
+      -DCMAKE_BUILD_TYPE=Release
+    BUILD_COMMAND ${DEFAULT_BUILD_COMMAND}
+    BUILD_ALWAYS OFF
+    INSTALL_COMMAND "" # BMC - fix this.  Add actual install to ospray_studio CMake
+  )
+
+  ExternalProject_Add_StepDependencies(ospray_studio configure ospray embree oidn)
 endif()
